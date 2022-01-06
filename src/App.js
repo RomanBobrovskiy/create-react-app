@@ -1,57 +1,67 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
-import './App.css';
+import "./App.css";
+import React, { useRef } from "react";
 
-function App() {
-  const [date, setDate] = useState(null);
-  useEffect(() => {
-    async function getDate() {
-      const res = await fetch('/api/date');
-      const newDate = await res.text();
-      setDate(newDate);
+export default function App() {
+  const video = useRef(null);
+  const canvas = useRef(null);
+
+  const capturePhoto = () => {
+    if (video.current && canvas.current) {
+      const { videoHeight, videoWidth } = video.current;
+      const context = canvas.current.getContext("2d");
+      canvas.current.width = videoWidth;
+      canvas.current.height = videoHeight;
+      context?.drawImage(video.current, 0, 0);
+      const imageUrl = canvas.current.toDataURL("image/png")
+      console.log("imageurl", imageUrl);
     }
-    getDate();
+  };
+
+  const triggerStartVideo = async () => {
+    video?.current?.setAttribute("autoplay", "");
+    video?.current?.setAttribute("muted", "");
+    video?.current?.setAttribute("playsinline", "");
+    console.log(await navigator.mediaDevices.enumerateDevices());
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
+      .then((stream) => {
+        if (video.current) {
+          if ("srcObject" in video.current) {
+            video.current.srcObject = stream;
+          } else {
+            // Avoid using this in new browsers, as it is going away.
+            // @ts-ignore
+            video.current.src = window.URL.createObjectURL(stream);
+          }
+          video.current.onloadedmetadata = function (e) {
+            // @ts-ignore
+            video.current.play();
+          };
+        }
+      })
+      .catch((err) => console.log(err));
+  };
+
+  React.useEffect(() => {
+    triggerStartVideo();
   }, []);
+
   return (
-    <main>
-      <h1>Create React App + Go API</h1>
-      <h2>
-        Deployed with{' '}
-        <a
-          href="https://vercel.com/docs"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          Vercel
-        </a>
-        !
-      </h2>
-      <p>
-        <a
-          href="https://github.com/vercel/vercel/tree/main/examples/create-react-app"
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          This project
-        </a>{' '}
-        was bootstrapped with{' '}
-        <a href="https://facebook.github.io/create-react-app/">
-          Create React App
-        </a>{' '}
-        and contains three directories, <code>/public</code> for static assets,{' '}
-        <code>/src</code> for components and content, and <code>/api</code>{' '}
-        which contains a serverless <a href="https://golang.org/">Go</a>{' '}
-        function. See{' '}
-        <a href="/api/date">
-          <code>api/date</code> for the Date API with Go
-        </a>
-        .
-      </p>
-      <br />
-      <h2>The date according to Go is:</h2>
-      <p>{date ? date : 'Loading date...'}</p>
-    </main>
+    <div>
+      <video
+        style={{
+          width: "85%",
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)"
+        }}
+        ref={video}
+      >
+        <track default kind="captions" />
+      </video>
+      <button onClick={capturePhoto} type="button" />
+      <canvas ref={canvas} />
+    </div>
   );
 }
-
-export default App;
